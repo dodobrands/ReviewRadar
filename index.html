@@ -881,9 +881,46 @@ document.querySelectorAll('.tab[data-view]').forEach(btn=>{
 });
 
 document.getElementById('reload-btn').addEventListener('click',()=>{
+  clearFile();
   document.getElementById('dashboard').style.display='none';
   document.getElementById('upload-screen').style.display='flex';
 });
+
+// ── localStorage persistence ─────────────────────────────────────────────
+const STORAGE_KEY = 'reviewradar_file';
+
+function saveFile(buf) {
+  try {
+    const bytes = new Uint8Array(buf);
+    let s = '';
+    for(let i=0; i<bytes.length; i++) s += String.fromCharCode(bytes[i]);
+    localStorage.setItem(STORAGE_KEY, btoa(s));
+  } catch(e) { /* quota exceeded — ignore */ }
+}
+
+function loadFile() {
+  try {
+    const b64 = localStorage.getItem(STORAGE_KEY);
+    if(!b64) return null;
+    const s = atob(b64);
+    const buf = new Uint8Array(s.length);
+    for(let i=0; i<s.length; i++) buf[i] = s.charCodeAt(i);
+    return buf.buffer;
+  } catch(e) { clearFile(); return null; }
+}
+
+function clearFile() { localStorage.removeItem(STORAGE_KEY); }
+
+// Auto-restore on page load
+(function() {
+  const buf = loadFile();
+  if(!buf) return;
+  try {
+    const result = parseXlsx(buf);
+    if(result.people.length) { initDashboard(result); return; }
+  } catch(e) {}
+  clearFile();
+})();
 
 // File handling
 function handleFile(file) {
@@ -895,6 +932,7 @@ function handleFile(file) {
     try {
       const result=parseXlsx(e.target.result);
       if(!result.people.length) throw new Error('Ни одной записи не найдено. Проверьте структуру колонок.');
+      saveFile(e.target.result);
       initDashboard(result);
     } catch(err) {
       console.error(err);
