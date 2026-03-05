@@ -73,7 +73,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
 .group-avg-row{display:flex;gap:6px;margin-bottom:10px}
 .avg-cell{flex:1;text-align:center;padding:6px 2px;border-radius:5px;border:1px solid transparent}
 .avg-val{font-size:14px;font-weight:700}
-.avg-lbl{font-size:8px;color:rgba(255,255,255,0.75);margin-top:2px}
+.avg-lbl{font-size:8px;color:rgba(255,255,255,0.75);margin-top:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 
 /* Individual */
 .person-selector{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
@@ -194,7 +194,7 @@ const TEAM_PALETTE   = ['#f472b6','#fb923c','#54c5f8','#a78bfa','#fbbf24','#34d3
 const COLOR_Q        = ['#3ddc84','#0a84ff','#86efac','#93c5fd','#54c5f8','#a78bfa','#f472b6','#fb923c','#fbbf24','#34d399'];
 
 const sColor = v => { if(!v)return'transparent';if(v<=8)return'#374b7a';if(v<=16)return'#2d6098';if(v<=24)return'#2874a6';if(v<=32)return'#2980b9';if(v<=48)return'#1a9c82';if(v<=64)return'#1abc9c';return'#d4a017'; };
-const sText  = v => { if(!v)return C.dim;if(v<=16)return'#7daad4';if(v<=32)return'#5dade2';if(v<=64)return'#48e0b0';return'#f0d060'; };
+const sText  = v => { if(!v)return C.dim;if(v<=64)return'#fff';return'#f0d060'; };
 const gapCol = g => { if(g>16)return'#f87171';if(g>0)return'#fbbf24';if(g<-16)return'#34d399';if(g<0)return'#6ee7b7';return C.dim; };
 
 // ── Auto-abbreviation ─────────────────────────────────────────────────────
@@ -605,12 +605,12 @@ function buildHeatmap() {
       <div class="group-avg-row">`;
     AREAS.forEach(a=>{
       const avg=Math.round(pp.reduce((s,p)=>s+(p.groups[a]||0),0)/pp.length);
-      h+=`<div class="avg-cell" style="background:${sColor(avg)};border-color:${sColor(avg)||'var(--border)'}">
+      h+=`<div class="avg-cell" title="${a}" style="background:${sColor(avg)};border-color:${sColor(avg)||'var(--border)'}">
         <div class="avg-val" style="color:${sText(avg)}">${avg||0}</div>
         <div class="avg-lbl">${a}</div></div>`;
     });
     h+=`</div><div style="display:flex;padding-left:148px;margin-bottom:4px">`;
-    AREAS.forEach(a=>h+=`<div style="flex:1;text-align:center;font-size:9px;font-weight:600;color:#d8dce8">${a}</div>`);
+    AREAS.forEach(a=>h+=`<div title="${a}" style="flex:1;text-align:center;font-size:9px;font-weight:600;color:#d8dce8;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${a}</div>`);
     h+='</div>';
     pp.forEach(p=>{
       h+=`<div class="person-row"><div class="person-name">
@@ -636,15 +636,19 @@ function buildIndividual() {
   const AREAS = META.areas;
   const el = document.getElementById('view-individual');
   const sorted = [...PEOPLE].sort((a,b)=>b.rt-a.rt);
-  let active = null;
+  let active = new Set();
 
   function render() {
-    const list = active ? sorted.filter(p=>p.n===active) : sorted;
+    const list = active.size ? sorted.filter(p=>active.has(p.n)) : sorted;
+    const allSel = active.size === sorted.length;
     let h='<div class="person-selector">';
+    h+=`<button class="person-btn" data-n="__all__"
+      style="background:${allSel?'var(--accent)30':'var(--raised)'};color:${allSel?'var(--accent)':'var(--muted)'};border-color:${allSel?'var(--accent)':'var(--border)'}">
+      Все</button>`;
     sorted.forEach(p=>{
-      const on=active===p.n;
+      const on=active.has(p.n);
       h+=`<button class="person-btn" data-n="${p.n}"
-        style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--muted)'};border-color:${on?pColor(p.p):'var(--border)'}">
+        style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--dim)'};border-color:${on?pColor(p.p):'var(--border)'}">
         ${p.n.split(' ')[0]} <span style="opacity:.6">${p.rt}</span></button>`;
     });
     h+='</div><div class="individual-grid">';
@@ -658,7 +662,7 @@ function buildIndividual() {
         <div class="skill-heat">`;
       p.sk.forEach(({s,rv})=>{
         const l=s.length>6?s.slice(0,6):s;
-        h+=`<div class="sheat-cell" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
+        h+=`<div class="sheat-cell" title="${s}" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
           <span class="sheat-v" style="color:${sText(rv)}">${rv}</span>
           <span class="sheat-l">${l}</span></div>`;
       });
@@ -685,7 +689,12 @@ function buildIndividual() {
     });
 
     el.querySelectorAll('.person-btn').forEach(btn=>{
-      btn.addEventListener('click',()=>{ active=active===btn.dataset.n?null:btn.dataset.n; render(); });
+      btn.addEventListener('click',()=>{
+        const n=btn.dataset.n;
+        if(n==='__all__') { active = (active.size===sorted.length) ? new Set() : new Set(sorted.map(p=>p.n)); }
+        else { if(active.has(n)) active.delete(n); else active.add(n); }
+        render();
+      });
     });
   }
   render();
@@ -701,6 +710,7 @@ function buildScoremap() {
 
   let showGap=true, showSelf=true;
   let filterPlat='all', filterTeam='all';
+  const revFilters = new Map();
 
   function getSegments() {
     let segs = [];
@@ -756,7 +766,7 @@ function buildScoremap() {
     h+=`<span style="margin-left:8px">Gap:</span><span style="color:#f87171">+16 переоценка</span><span style="color:#34d399">−16 недооценка</span></div>`;
 
     segs.forEach(g=>{
-      const pp=[...PEOPLE].filter(g.fn).sort((a,b)=>b.rt-a.rt);
+      let pp=[...PEOPLE].filter(g.fn).sort((a,b)=>b.rt-a.rt);
       if(!pp.length) return;
 
       // Build skill list from platform's known order, then add any extras
@@ -766,9 +776,20 @@ function buildScoremap() {
       order.forEach(o=>{ if(!seen.has(o.s)&&pp.some(p=>p.sk.find(sk=>sk.s===o.s))){ seen.add(o.s); skillList.push(o); }});
       pp.forEach(p=>p.sk.forEach(sk=>{ if(!seen.has(sk.s)){ seen.add(sk.s); skillList.push({s:sk.s,g:sk.g}); }}));
 
+      const segRevs = [...new Set(pp.map(p=>p.rev).filter(Boolean))];
+      const curRev = revFilters.get(g.label) || 'all';
+      if(segRevs.length >= 2 && curRev !== 'all') pp = pp.filter(p=>p.rev===curRev);
+      let revFilterHtml = '';
+      if(segRevs.length >= 2) {
+        revFilterHtml = `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px">`;
+        revFilterHtml += `<button class="tab${curRev==='all'?' active':''}" data-seg="${g.label}" data-rev="all" style="font-size:8px;padding:2px 7px">Все</button>`;
+        segRevs.forEach(r=>{ revFilterHtml+=`<button class="tab${curRev===r?' active':''}" data-seg="${g.label}" data-rev="${r}" style="font-size:8px;padding:2px 7px">${r}</button>`; });
+        revFilterHtml += `</div>`;
+      }
       h+=`<div class="scoremap-group">
         <div class="sg-header"><div class="sg-dot" style="background:${g.color}"></div>
           <span class="sg-title">${g.label}</span><span class="sg-count">(${pp.length})</span></div>
+        ${revFilterHtml}
         <div style="display:flex;align-items:flex-end;margin-bottom:3px">
           <div style="width:155px;flex-shrink:0"></div>
           <div style="width:44px;flex-shrink:0;text-align:center;font-size:8px;color:var(--muted)">Σ rev</div>
@@ -806,6 +827,9 @@ function buildScoremap() {
     });
 
     el.innerHTML=h;
+    el.querySelectorAll('[data-rev]').forEach(b=>{
+      b.addEventListener('click',()=>{ revFilters.set(b.dataset.seg, b.dataset.rev); render(); });
+    });
     el.querySelectorAll('[data-fp],[data-ft]').forEach(b=>{
       b.addEventListener('click',()=>{
         const fp=b.dataset.fp, ft=b.dataset.ft;
