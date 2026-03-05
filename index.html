@@ -639,18 +639,18 @@ function buildIndividual() {
   const AREAS = META.areas;
   const el = document.getElementById('view-individual');
   const sorted = [...PEOPLE].sort((a,b)=>b.rt-a.rt);
-  let active = new Set();
+  let active = null; // null = uninitialized, set after sorted is built
 
   function render() {
-    const showAll = active.size === 0;
-    const list = showAll ? sorted : sorted.filter(p=>active.has(p.n));
-    const allOn = showAll || active.size === sorted.length;
+    if(!active) active = new Set(sorted.map(p=>p.n));
+    const list = sorted.filter(p=>active.has(p.n));
+    const allSel = active.size === sorted.length;
     let h='<div class="person-selector">';
     h+=`<button class="person-btn" data-n="__all__"
-      style="background:${allOn?'var(--accent)30':'var(--raised)'};color:${allOn?'var(--accent)':'var(--muted)'};border-color:${allOn?'var(--accent)':'var(--border)'}">
+      style="background:${allSel?'var(--accent)30':'var(--raised)'};color:${allSel?'var(--accent)':'var(--muted)'};border-color:${allSel?'var(--accent)':'var(--border)'}">
       Все</button>`;
     sorted.forEach(p=>{
-      const on=showAll||active.has(p.n);
+      const on=active.has(p.n);
       h+=`<button class="person-btn" data-n="${p.n}"
         style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--dim)'};border-color:${on?pColor(p.p):'var(--border)'}">
         ${p.n.split(' ')[0]} <span style="opacity:.6">${p.rt}</span></button>`;
@@ -695,7 +695,7 @@ function buildIndividual() {
     el.querySelectorAll('.person-btn').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const n=btn.dataset.n;
-        if(n==='__all__') { active = new Set(); }
+        if(n==='__all__') { active = (active.size===sorted.length) ? new Set() : new Set(sorted.map(p=>p.n)); }
         else { if(active.has(n)) active.delete(n); else active.add(n); }
         render();
       });
