@@ -144,6 +144,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_group</code></td><td style="color:var(--muted)">группа вопросов</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_name</code></td><td style="color:var(--muted)">вопрос / навык</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_value</code></td><td style="color:var(--muted)">оценка</td></tr>
+      <tr><td style="color:var(--dim);padding:1px 6px 1px 0"><code>answer_weight</code></td><td style="color:var(--dim)">опционально — коэффициент (целое, умножает оценку; по умолч. 1)</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>reviewer</code></td><td style="color:var(--muted)">имя ревьювера</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>total_score</code></td><td style="color:var(--muted)">итоговый балл</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>comment</code></td><td style="color:var(--muted)">комментарий (игнорируется)</td></tr>
@@ -262,6 +263,7 @@ function parseXlsx(buf) {
 
   const rows    = raw.slice(1).filter(r => r.some(c => c !== '' && c != null));
   const teamKey = ['team','Team','Команда','команда'].find(k => k in colIdx);
+  const hasWeight = 'answer_weight' in colIdx;
 
   // ── Pass 1: discover schema from file ──────────────────────────────────
   // group full→short, skill full→short, platform per template, skill order per platform
@@ -345,7 +347,8 @@ function parseXlsx(buf) {
     };
 
     const p   = byId[id];
-    const val = getNum(row, 'answer_value');
+    const weight = hasWeight ? (Math.round(Math.abs(parseFloat(row[colIdx['answer_weight']]))) || 1) : 1;
+    const val = getNum(row, 'answer_value') * weight;
     const rtp = get(row, 'reviewer_type');
     const tot = getNum(row, 'total_score');
     const res = get(row, 'result');
@@ -770,7 +773,7 @@ function buildScoremap() {
           <div style="width:155px;flex-shrink:0"></div>
           <div style="width:44px;flex-shrink:0;text-align:center;font-size:8px;color:var(--muted)">Σ rev</div>
           <div style="display:flex;gap:1px">`;
-      skillList.forEach(o=>h+=`<div class="sm-col-lbl" style="color:${gColor(o.g)}" data-full="${o.s}"><span>${o.s.slice(0,4)}</span></div>`);
+      skillList.forEach(o=>h+=`<div class="sm-col-lbl" style="color:${gColor(o.g)}" data-full="${o.s}"><span>${o.s.slice(0,6)}</span></div>`);
       h+=`</div></div><div style="display:flex;margin-bottom:4px"><div style="width:199px;flex-shrink:0"></div><div style="display:flex;gap:1px">`;
       skillList.forEach(o=>h+=`<div style="width:32px;height:2px;border-radius:1px;background:${gColor(o.g)};opacity:.5"></div>`);
       h+='</div></div>';
