@@ -194,6 +194,7 @@ const C = {
 const GROUP_PALETTE  = ['#8b7cf6','#f472b6','#22d3ee','#fbbf24','#34d399','#60a5fa','#f97316','#a78bfa','#e879f9','#2dd4bf'];
 const TEAM_PALETTE   = ['#f472b6','#fb923c','#54c5f8','#a78bfa','#fbbf24','#34d399','#60a5fa','#e879f9'];
 const COLOR_Q        = ['#3ddc84','#0a84ff','#86efac','#93c5fd','#54c5f8','#a78bfa','#f472b6','#fb923c','#fbbf24','#34d399'];
+const PERSON_PALETTE = ['#f87171','#60a5fa','#34d399','#fb923c','#a78bfa','#2dd4bf','#fbbf24','#e879f9','#86efac','#93c5fd','#f97316','#38bdf8'];
 
 const sColor = v => { if(!v)return'transparent';if(v<=8)return'#374b7a';if(v<=16)return'#2d6098';if(v<=24)return'#2874a6';if(v<=32)return'#2980b9';if(v<=48)return'#1a9c82';if(v<=64)return'#1abc9c';return'#d4a017'; };
 const sText  = v => { if(!v)return C.dim;if(v<=64)return'#fff';return'#f0d060'; };
@@ -639,6 +640,7 @@ function buildIndividual() {
   const AREAS = META.areas;
   const el = document.getElementById('view-individual');
   const sorted = [...PEOPLE].sort((a,b)=>b.rt-a.rt);
+  const iColor = p => PERSON_PALETTE[sorted.indexOf(p) % PERSON_PALETTE.length];
   let active = null; // null = uninitialized, set after sorted is built
 
   function render() {
@@ -652,12 +654,12 @@ function buildIndividual() {
     sorted.forEach(p=>{
       const on=active.has(p.n);
       h+=`<button class="person-btn" data-n="${p.n}"
-        style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--dim)'};border-color:${on?pColor(p.p):'var(--border)'}">
+        style="background:${on?iColor(p)+'30':'var(--raised)'};color:${on?iColor(p):'var(--dim)'};border-color:${on?iColor(p):'var(--border)'}">
         ${p.n.split(' ')[0]} <span style="opacity:.6">${p.rt}</span></button>`;
     });
     h+='</div><div class="individual-grid">';
     list.forEach((p,i)=>{
-      h+=`<div class="ind-card" style="border-left:3px solid ${pColor(p.p)}">
+      h+=`<div class="ind-card" style="border-left:3px solid ${iColor(p)}">
         <div class="ind-header">
           <div><div class="ind-name">${p.n}</div><div class="ind-sub">${p.t!=='—'?p.t+' · ':''}${p.p}</div></div>
           <div style="text-align:right">${badgeHtml(p.res)}<div class="ind-score">${p.rt}</div></div>
@@ -682,8 +684,8 @@ function buildIndividual() {
       IC[id]=new Chart(ctx,{
         type:'radar',
         data:{labels:AREAS, datasets:[{data:AREAS.map(a=>p.groups[a]||0),
-          borderColor:pColor(p.p), backgroundColor:pColor(p.p)+'20',
-          pointBackgroundColor:pColor(p.p), borderWidth:2, pointRadius:2}]},
+          borderColor:iColor(p), backgroundColor:iColor(p)+'20',
+          pointBackgroundColor:iColor(p), borderWidth:2, pointRadius:2}]},
         options:{responsive:true,maintainAspectRatio:true,
           scales:{r:{min:0,max:80,grid:{color:C.border},angleLines:{color:C.border},
             pointLabels:{color:C.muted,font:{size:8}},ticks:{display:false}}},
