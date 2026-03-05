@@ -551,18 +551,17 @@ function buildRadarView() {
 
   document.getElementById('view-radar').innerHTML = `
     <div class="radar-grid">
-      <div class="card full">
+      <div class="card">
         <div class="card-title">Обзор: все группы</div>
         <div class="card-sub">Средний балл ревьюера по группам</div>
-        <canvas id="rc-all" height="260"></canvas>
+        <canvas id="rc-all" height="240"></canvas>
       </div>
       <div class="card">
         <div class="card-title">По типам ревью</div>
         <div class="card-sub">${roles.join(' vs ')}</div>
         <canvas id="rc-role" height="240"></canvas>
       </div>
-      ${pairHtml || `<div class="card"><div class="card-title" style="color:var(--muted);font-size:11px">Попарные сравнения</div>
-        <div class="card-sub">Добавьте колонку <code style="background:var(--raised);padding:1px 4px;border-radius:3px">team</code> для разбивки по командам</div></div>`}
+      ${pairHtml}
     </div>`;
 
   setTimeout(()=>{
