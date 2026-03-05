@@ -642,14 +642,15 @@ function buildIndividual() {
   let active = new Set();
 
   function render() {
-    const list = active.size ? sorted.filter(p=>active.has(p.n)) : sorted;
-    const allSel = active.size === sorted.length;
+    const showAll = active.size === 0;
+    const list = showAll ? sorted : sorted.filter(p=>active.has(p.n));
+    const allOn = showAll || active.size === sorted.length;
     let h='<div class="person-selector">';
     h+=`<button class="person-btn" data-n="__all__"
-      style="background:${allSel?'var(--accent)30':'var(--raised)'};color:${allSel?'var(--accent)':'var(--muted)'};border-color:${allSel?'var(--accent)':'var(--border)'}">
+      style="background:${allOn?'var(--accent)30':'var(--raised)'};color:${allOn?'var(--accent)':'var(--muted)'};border-color:${allOn?'var(--accent)':'var(--border)'}">
       Все</button>`;
     sorted.forEach(p=>{
-      const on=active.has(p.n);
+      const on=showAll||active.has(p.n);
       h+=`<button class="person-btn" data-n="${p.n}"
         style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--dim)'};border-color:${on?pColor(p.p):'var(--border)'}">
         ${p.n.split(' ')[0]} <span style="opacity:.6">${p.rt}</span></button>`;
