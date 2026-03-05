@@ -271,6 +271,7 @@ function parseXlsx(buf) {
   // group full→short, skill full→short, platform per template, skill order per platform
   const groupShortMap  = new Map(); // full group name → short name (ordered by first seen)
   const skillShortMap  = new Map(); // full skill name → short name
+  const skillFullMap   = new Map(); // short name → full name (first seen)
   const templateRole   = new Map(); // template_name → platform string
   // skill order per platform: platform → Map(skillShort → groupShort) in appearance order
   const roleSkillOrder = new Map(); // platform → array of {s, g} in order
@@ -298,7 +299,7 @@ function parseXlsx(buf) {
     if(!groupShortMap.has(grpFull)) groupShortMap.set(grpFull, groupShort(grpFull));
 
     // Skill short
-    if(!skillShortMap.has(sklFull)) skillShortMap.set(sklFull, skillShort(sklFull));
+    if(!skillShortMap.has(sklFull)) { skillShortMap.set(sklFull, skillShort(sklFull)); skillFullMap.set(skillShort(sklFull), sklFull); }
 
     // Track skill order per platform (only from reviewer or author rows)
     if(!roleSkillOrder.has(role)) { roleSkillOrder.set(role, []); roleSkillSeen.set(role, new Set()); }
@@ -306,7 +307,7 @@ function parseXlsx(buf) {
     const grpS = groupShortMap.get(grpFull);
     if(!roleSkillSeen.get(role).has(sks)) {
       roleSkillSeen.get(role).add(sks);
-      roleSkillOrder.get(role).push({s:sks, g:grpS});
+      roleSkillOrder.get(role).push({s:sks, g:grpS, f:sklFull});
     }
   });
 
@@ -386,15 +387,15 @@ function parseXlsx(buf) {
     const orderedSk = [
       ...order.filter(o => allSk.has(o.s)),
       ...[...allSk].filter(s => !order.find(o=>o.s===s)).map(s => ({
-        s, g: (p.rv[s]||p.self[s])?.group || '?'
+        s, g: (p.rv[s]||p.self[s])?.group || '?', f: skillFullMap.get(s)||s
       }))
     ];
 
     const sk = [], gSum = {}, gCount = {};
-    orderedSk.forEach(({s,g}) => {
+    orderedSk.forEach(({s,g,f}) => {
       const sd = p.self[s]||{value:0, group:g};
       const rd = p.rv[s]  ||{value:0, group:g};
-      sk.push({g, s, self:sd.value, rv:rd.value});
+      sk.push({g, s, f:f||s, self:sd.value, rv:rd.value});
       gSum[g]   = (gSum[g]  ||0) + rd.value;
       gCount[g] = (gCount[g]||0) + 1;
     });
@@ -433,7 +434,7 @@ function parseXlsx(buf) {
   resultOrder.forEach((r,i) => resultColors[r] = RESULT_COLOR_PALETTE[i % RESULT_COLOR_PALETTE.length]);
 
   const meta = { areas, groupColors, roles, roleColors, teams, teamColors,
-                 resultColors, roleSkillOrder, skillsByPlatform: roleSkillOrder };
+                 resultColors, roleSkillOrder, skillsByPlatform: roleSkillOrder, skillFullMap };
 
   return {people, meta};
 }
@@ -662,9 +663,9 @@ function buildIndividual() {
         </div>
         <canvas id="ic-${i}" style="max-height:180px"></canvas>
         <div class="skill-heat">`;
-      p.sk.forEach(({s,rv})=>{
+      p.sk.forEach(({s,rv,f})=>{
         const l=s.length>6?s.slice(0,6):s;
-        h+=`<div class="sheat-cell" data-full="${s}" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
+        h+=`<div class="sheat-cell" data-full="${f||s}" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
           <span class="sheat-v">${rv}</span>
           <span class="sheat-l">${l}</span></div>`;
       });
@@ -776,7 +777,7 @@ function buildScoremap() {
       const seen  = new Set();
       const skillList = [];
       order.forEach(o=>{ if(!seen.has(o.s)&&pp.some(p=>p.sk.find(sk=>sk.s===o.s))){ seen.add(o.s); skillList.push(o); }});
-      pp.forEach(p=>p.sk.forEach(sk=>{ if(!seen.has(sk.s)){ seen.add(sk.s); skillList.push({s:sk.s,g:sk.g}); }}));
+      pp.forEach(p=>p.sk.forEach(sk=>{ if(!seen.has(sk.s)){ seen.add(sk.s); skillList.push({s:sk.s,g:sk.g,f:sk.f}); }}));
 
       const segRevs = [...new Set(pp.map(p=>p.rev).filter(Boolean))];
       const curRev = revFilters.get(g.label) || 'all';
@@ -796,7 +797,7 @@ function buildScoremap() {
           <div style="width:155px;flex-shrink:0"></div>
           <div style="width:44px;flex-shrink:0;text-align:center;font-size:8px;color:var(--muted)">Σ rev</div>
           <div style="display:flex;gap:1px">`;
-      skillList.forEach(o=>h+=`<div class="sm-col-lbl" style="color:${gColor(o.g)}" data-full="${o.s}"><span>${o.s.slice(0,6)}</span></div>`);
+      skillList.forEach(o=>h+=`<div class="sm-col-lbl" style="color:${gColor(o.g)}" data-full="${o.f||META.skillFullMap&&META.skillFullMap.get(o.s)||o.s}"><span>${o.s.slice(0,6)}</span></div>`);
       h+=`</div></div><div style="display:flex;margin-bottom:4px"><div style="width:199px;flex-shrink:0"></div><div style="display:flex;gap:1px">`;
       skillList.forEach(o=>h+=`<div style="width:32px;height:2px;border-radius:1px;background:${gColor(o.g)};opacity:.5"></div>`);
       h+='</div></div>';
