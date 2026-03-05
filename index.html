@@ -147,7 +147,7 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_value</code></td><td style="color:var(--muted)">оценка</td></tr>
       <tr><td style="color:var(--dim);padding:1px 6px 1px 0"><code>answer_weight</code></td><td style="color:var(--dim)">опционально — коэффициент (целое, умножает оценку; по умолч. 1)</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>reviewer</code></td><td style="color:var(--muted)">имя ревьювера</td></tr>
-      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>total_score</code></td><td style="color:var(--muted)">итоговый балл</td></tr>
+      <tr><td style="color:var(--dim);padding:1px 6px 1px 0"><code>total_score</code></td><td style="color:var(--dim)">игнорируется — итог считается из оценок</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>comment</code></td><td style="color:var(--muted)">комментарий (игнорируется)</td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>reviewer_type</code></td><td style="color:var(--muted)"><b>review_author</b> — самооценка · <b>review_leader/required</b> — ревьювер · <i>review_additional игнорируется</i></td></tr>
       <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>result</code></td><td style="color:var(--muted)">грейд (Senior, Middle…)</td></tr>
@@ -345,7 +345,7 @@ function parseXlsx(buf) {
     if(!byId[id]) byId[id] = {
       id, n: get(row,'review_author'), tmpl,
       team: teamKey ? get(row, teamKey) : '—',
-      res:'', rev:'', rt:0, st:0, role_type: role,
+      res:'', rev:'', role_type: role,
       self:{}, rv:{}, rvPriority:99,
     };
 
@@ -353,14 +353,12 @@ function parseXlsx(buf) {
     const weight = hasWeight ? (Math.round(Math.abs(parseFloat(row[colIdx['answer_weight']]))) || 1) : 1;
     const val = getNum(row, 'answer_value') * weight;
     const rtp = get(row, 'reviewer_type');
-    const tot = getNum(row, 'total_score');
     const res = get(row, 'result');
     const rev = get(row, 'reviewer');
 
     if(res) p.res = normResult(res);
 
     if(rtp === 'review_author') {
-      if(tot) p.st = tot;
       p.self[sklS] = {value:val, group:grpS};
     } else {
       const priority = REVIEWER_TYPES.indexOf(rtp);
@@ -369,12 +367,10 @@ function parseXlsx(buf) {
       if(priority < p.rvPriority) {
         p.rvPriority = priority;
         p.rv = {};
-        if(tot) p.rt = tot;
         if(rev) p.rev = rev;
       }
       if(priority === p.rvPriority) {
         p.rv[sklS] = {value:val, group:grpS};
-        if(tot && !p.rt) p.rt = tot;
         if(rev && !p.rev) p.rev = rev;
       }
     }
@@ -405,8 +401,10 @@ function parseXlsx(buf) {
       if(gSum[a] !== undefined) groups[a] = Math.round(gSum[a] / gCount[a]);
     });
 
+    const rt = sk.reduce((s,x) => s + x.rv,   0);
+    const st = sk.reduce((s,x) => s + x.self, 0);
     return { n:p.n, p:p.role_type, t:p.team||'—', res:p.res||'?',
-             rev:p.rev, rt:p.rt, st:p.st, groups, sk };
+             rev:p.rev, rt, st, groups, sk };
   });
 
   // ── Teams ────────────────────────────────────────────────────────────────
