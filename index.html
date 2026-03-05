@@ -85,9 +85,9 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
 .ind-sub{font-size:9px;color:var(--muted);margin-top:1px}
 .ind-score{font-size:13px;font-weight:700;color:var(--accent)}
 .skill-heat{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
-.sheat-cell{width:36px;height:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;border:1px solid transparent}
-.sheat-v{font-size:9px;font-weight:700;line-height:1}
-.sheat-l{font-size:6px;color:var(--dim);line-height:1;margin-top:1px}
+.sheat-cell{width:36px;height:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;border:1px solid transparent;position:relative;cursor:default}
+.sheat-v{font-size:9px;font-weight:700;line-height:1;color:#fff}
+.sheat-l{font-size:6px;color:rgba(255,255,255,0.7);line-height:1;margin-top:1px}
 @media(max-width:700px){.individual-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.individual-grid{grid-template-columns:1fr}}
 
@@ -114,6 +114,8 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
 .sm-col-lbl span{font-size:7px;overflow:hidden;white-space:nowrap;max-width:30px;text-overflow:ellipsis;display:block;text-align:center}
 .sm-col-lbl::after{content:attr(data-full);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--borderL);border-radius:5px;padding:3px 7px;font-size:9px;white-space:nowrap;z-index:100;color:var(--text);pointer-events:none;opacity:0;transition:opacity .1s}
 .sm-col-lbl:hover::after{opacity:1}
+.sheat-cell::after{content:attr(data-full);position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--borderL);border-radius:5px;padding:3px 8px;font-size:9px;white-space:nowrap;z-index:100;color:var(--text);pointer-events:none;opacity:0;transition:opacity .1s}
+.sheat-cell:hover::after{opacity:1}
 
 .view{display:none}
 .view.active{display:block}
@@ -662,8 +664,8 @@ function buildIndividual() {
         <div class="skill-heat">`;
       p.sk.forEach(({s,rv})=>{
         const l=s.length>6?s.slice(0,6):s;
-        h+=`<div class="sheat-cell" title="${s}" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
-          <span class="sheat-v" style="color:${sText(rv)}">${rv}</span>
+        h+=`<div class="sheat-cell" data-full="${s}" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
+          <span class="sheat-v">${rv}</span>
           <span class="sheat-l">${l}</span></div>`;
       });
       h+='</div></div>';
