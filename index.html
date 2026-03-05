@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Радары оценок</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+:root {
+  --bg:#0a0b10; --surf:#111318; --card:#161920; --raised:#1c1f2a;
+  --border:#23273a; --borderL:#2d3248;
+  --text:#d8dce8; --muted:#6b7194; --dim:#3e4463; --accent:#8b7cf6;
+  --android:#3ddc84; --ios:#0a84ff; --flutter:#54c5f8;
+  --drinkit:#f472b6; --pizza:#fb923c; --other:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Plex Mono',monospace;font-size:13px;min-height:100vh;padding:20px 14px 40px}
+.container{max-width:1160px;margin:0 auto}
+
+/* Upload */
+#upload-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:70vh;gap:20px}
+.drop-zone{width:440px;max-width:100%;padding:40px 32px;border:2px dashed var(--borderL);border-radius:14px;text-align:center;cursor:pointer;transition:all .2s;background:var(--card);position:relative}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(139,124,246,.06)}
+.drop-icon{font-size:40px;margin-bottom:12px}
+.drop-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.drop-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.format-hint{font-size:9px;color:var(--dim);max-width:440px;text-align:center;line-height:1.8}
+.format-hint code{background:var(--raised);padding:1px 5px;border-radius:3px;color:var(--muted);font-family:inherit}
+
+/* Dashboard */
+#dashboard{display:none}
+.header{margin-bottom:18px}
+.header h1{font-size:17px;font-weight:700;letter-spacing:-.4px}
+.header p{font-size:10px;color:var(--muted);margin-top:3px}
+.header-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.reload-btn{font-size:9px;font-family:inherit;padding:5px 10px;cursor:pointer;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:5px;white-space:nowrap;transition:all .15s}
+.reload-btn:hover{color:var(--text);border-color:var(--muted)}
+
+/* Tabs */
+.tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+.tab{padding:6px 14px;font-size:10px;font-weight:400;font-family:inherit;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:all .15s}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+
+/* Legend */
+.legend{display:flex;gap:10px;margin-bottom:16px;font-size:9px;color:var(--muted);flex-wrap:wrap;align-items:center}
+.legend-dot{width:8px;height:8px;border-radius:2px;display:inline-block;margin-right:3px;vertical-align:middle}
+.scale-chip{padding:2px 6px;border-radius:3px;font-weight:600;font-size:9px}
+
+/* Card */
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.card-title{font-size:13px;font-weight:600;margin-bottom:2px}
+.card-sub{font-size:9px;color:var(--muted);margin-bottom:10px}
+
+/* Radar */
+.radar-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.radar-grid .full{grid-column:span 2}
+@media(max-width:700px){.radar-grid{grid-template-columns:1fr}.radar-grid .full{grid-column:1}}
+
+/* Heatmap */
+.heatmap-section{display:grid;gap:12px}
+.person-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--border)}
+.person-name{width:148px;flex-shrink:0}
+.pname{font-size:10px;font-weight:600;display:flex;align-items:center;gap:4px;overflow:hidden}
+.pname-dot{width:6px;height:6px;border-radius:3px;flex-shrink:0}
+.pmeta{display:flex;gap:4px;margin-top:2px;padding-left:10px;align-items:center}
+.badge{padding:1px 5px;border-radius:3px;font-size:8px;font-weight:600;white-space:nowrap}
+.group-cells{display:flex;gap:3px;flex:1}
+.gcell{flex:1;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border:1px solid transparent}
+.group-avg-row{display:flex;gap:6px;margin-bottom:10px}
+.avg-cell{flex:1;text-align:center;padding:6px 2px;border-radius:5px;border:1px solid transparent}
+.avg-val{font-size:14px;font-weight:700}
+.avg-lbl{font-size:8px;color:var(--muted);margin-top:2px}
+
+/* Individual */
+.person-selector{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
+.person-btn{padding:4px 8px;font-size:9px;background:var(--raised);color:var(--muted);border:1px solid var(--border);border-radius:4px;cursor:pointer;font-family:inherit;transition:all .12s}
+.individual-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ind-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px}
+.ind-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.ind-name{font-size:11px;font-weight:700}
+.ind-sub{font-size:9px;color:var(--muted);margin-top:1px}
+.ind-score{font-size:13px;font-weight:700;color:var(--accent)}
+.skill-heat{display:flex;gap:2px;flex-wrap:wrap;margin-top:8px}
+.sheat-cell{width:36px;height:28px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;border:1px solid transparent}
+.sheat-v{font-size:9px;font-weight:700;line-height:1}
+.sheat-l{font-size:6px;color:var(--dim);line-height:1;margin-top:1px}
+@media(max-width:700px){.individual-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.individual-grid{grid-template-columns:1fr}}
+
+/* Score map */
+.scoremap-controls{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;align-items:center}
+.toggle-btn{padding:5px 10px;font-size:9px;font-weight:500;font-family:inherit;background:transparent;color:var(--dim);border:1px solid var(--border);border-radius:4px;cursor:pointer;transition:all .12s}
+.toggle-btn.active{background:var(--raised);color:var(--text)}
+.sep{width:1px;height:20px;background:var(--border);flex-shrink:0}
+.scoremap-group{margin-bottom:24px}
+.sg-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.sg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.sg-title{font-size:13px;font-weight:700}
+.sg-count{font-size:10px;color:var(--muted)}
+.sm-row{display:flex;align-items:center;border-bottom:1px solid var(--border);padding:3px 0}
+.sm-name{width:155px;flex-shrink:0;padding-right:8px}
+.sm-total{width:44px;flex-shrink:0;text-align:center}
+.sm-total-v{font-size:12px;font-weight:700;color:var(--accent)}
+.sm-total-g{font-size:8px}
+.sm-cells{display:flex;gap:1px;flex-wrap:nowrap}
+.sm-cell{width:32px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;border:1px solid transparent;flex-shrink:0}
+.sm-v{font-size:9px;font-weight:700;line-height:1}
+.sm-g{font-size:7px;line-height:1;margin-top:1px}
+
+.view{display:none}
+.view.active{display:block}
+#upload-error{color:#f87171;font-size:10px;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ── Upload screen ── -->
+<div id="upload-screen">
+  <div style="text-align:center">
+    <h1 style="font-size:18px;font-weight:700">Радары оценок</h1>
+    <p style="font-size:10px;color:var(--muted);margin-top:6px" id="upload-sub">Загрузите Excel с результатами ревью</p>
+  </div>
+  <div class="drop-zone" id="drop-zone">
+    <div class="drop-icon">📊</div>
+    <div class="drop-title">Перетащите .xlsx сюда</div>
+    <div class="drop-sub">или нажмите для выбора файла</div>
+    <input type="file" id="file-input" accept=".xlsx,.xls">
+  </div>
+  <div class="format-hint">
+    <table style="font-size:9px;border-collapse:collapse;width:100%">
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0;white-space:nowrap"><code>id</code></td><td style="color:var(--muted)">уникальный ID ревью</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>review_author</code></td><td style="color:var(--muted)">имя оцениваемого</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>job_role</code></td><td style="color:var(--muted)">роль сотрудника</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>template_name</code></td><td style="color:var(--muted)">набор вопросов (определяет тип ревью)</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_group</code></td><td style="color:var(--muted)">группа вопросов</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_name</code></td><td style="color:var(--muted)">вопрос / навык</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>answer_value</code></td><td style="color:var(--muted)">оценка</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>reviewer</code></td><td style="color:var(--muted)">имя ревьювера</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>total_score</code></td><td style="color:var(--muted)">итоговый балл</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>comment</code></td><td style="color:var(--muted)">комментарий (игнорируется)</td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>reviewer_type</code></td><td style="color:var(--muted)"><b>review_author</b> — самооценка · <b>review_leader/required</b> — ревьювер · <i>review_additional игнорируется</i></td></tr>
+      <tr><td style="color:var(--accent);padding:1px 6px 1px 0"><code>result</code></td><td style="color:var(--muted)">грейд (Senior, Middle…)</td></tr>
+      <tr><td style="color:var(--dim);padding:3px 6px 1px 0"><code>team</code></td><td style="color:var(--dim)">опционально — команда/отдел</td></tr>
+    </table>
+  </div>
+  <div id="upload-error" style="display:none"></div>
+</div>
+
+<!-- ── Dashboard ── -->
+<div id="dashboard">
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <h1 id="dash-title">Радары оценок</h1>
+        <p id="subtitle"></p>
+      </div>
+      <button class="reload-btn" id="reload-btn">← Загрузить другой файл</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-view="radar">Радары команд</button>
+    <button class="tab" data-view="heatmap">Heatmap по группам</button>
+    <button class="tab" data-view="individual">Индивидуальные радары</button>
+    <button class="tab" data-view="scoremap">Карта оценок</button>
+  </div>
+  <div class="legend" id="legend"></div>
+  <div id="view-radar"       class="view active"></div>
+  <div id="view-heatmap"     class="view"></div>
+  <div id="view-individual"  class="view"></div>
+  <div id="view-scoremap"    class="view"></div>
+</div>
+
+<script>
+// ── Palette ──────────────────────────────────────────────────────────────
+const C = {
+  bg:'#0a0b10', card:'#161920', raised:'#1c1f2a', border:'#23273a',
+  text:'#d8dce8', muted:'#6b7194', dim:'#3e4463', accent:'#8b7cf6',
+  android:'#3ddc84', ios:'#0a84ff', flutter:'#54c5f8',
+};
+
+// Fixed color palettes — assigned dynamically from file
+const GROUP_PALETTE  = ['#8b7cf6','#f472b6','#22d3ee','#fbbf24','#34d399','#60a5fa','#f97316','#a78bfa','#e879f9','#2dd4bf'];
+const TEAM_PALETTE   = ['#f472b6','#fb923c','#54c5f8','#a78bfa','#fbbf24','#34d399','#60a5fa','#e879f9'];
+const COLOR_Q        = ['#3ddc84','#0a84ff','#86efac','#93c5fd','#54c5f8','#a78bfa','#f472b6','#fb923c','#fbbf24','#34d399'];
+
+const sColor = v => { if(!v)return'transparent';if(v<=8)return'#374b7a';if(v<=16)return'#2d6098';if(v<=24)return'#2874a6';if(v<=32)return'#2980b9';if(v<=48)return'#1a9c82';if(v<=64)return'#1abc9c';return'#d4a017'; };
+const sText  = v => { if(!v)return C.dim;if(v<=16)return'#7daad4';if(v<=32)return'#5dade2';if(v<=64)return'#48e0b0';return'#f0d060'; };
+const gapCol = g => { if(g>16)return'#f87171';if(g>0)return'#fbbf24';if(g<-16)return'#34d399';if(g<0)return'#6ee7b7';return C.dim; };
+
+// ── Auto-abbreviation ─────────────────────────────────────────────────────
+function abbrev(str, maxLen) {
+  const s = String(str||'').replace(/\s*[\(（,].*$/,'').trim();
+  if(s.length <= maxLen) return s;
+  // Split on dash separators (—, –, -, /)
+  const parts = s.split(/\s*[—–\/]\s*/);
+  if(parts.length >= 2) {
+    const a = abbrev(parts[0].split(/\s+/)[0], 5);
+    const b = parts[1].trim();
+    const bShort = b.length <= 5 ? b : b.slice(0,4)+'.';
+    return (a+' '+bShort).slice(0, maxLen);
+  }
+  const words = s.split(/\s+/);
+  if(words.length === 1) return s.slice(0, maxLen-1)+'.';
+  let acc = words[0].length > maxLen-1 ? words[0].slice(0,maxLen-1)+'.' : words[0];
+  for(let i=1; i<words.length; i++) {
+    const w = words[i].length<=4 ? words[i] : words[i].slice(0,3)+'.';
+    if(acc.length+1+w.length <= maxLen) acc += ' '+w; else break;
+  }
+  return acc.length < s.length ? acc : s.slice(0,maxLen-1)+'.';
+}
+
+function groupShort(fullName) { return abbrev(fullName, 12); }
+function skillShort(fullName)  { return abbrev(fullName, 10); }
+
+// Platform is extracted directly from template_name:
+// first word before a space or dot ("Android Developer..." → "Android")
+// Falls back to full template name if pattern doesn't match
+function extractRole(tmpl) {
+  if(!tmpl) return 'Unknown';
+  const m = String(tmpl).match(/^([^\s.]+)/);
+  return m ? m[1] : String(tmpl).slice(0, 20);
+}
+
+// Normalize result string: underscores → spaces, trim
+function normResult(r) {
+  if(!r) return '?';
+  return String(r).replace(/_/g, ' ').trim();
+}
+
+// Assigned dynamically after parse — see META.resultColors
+function resultColor(res) {
+  return (META && META.resultColors && META.resultColors[res]) || C.muted;
+}
+
+// ── XLSX Parser ───────────────────────────────────────────────────────────
+function parseXlsx(buf) {
+  const wb  = XLSX.read(buf, {type:'array'});
+  const ws  = wb.Sheets[wb.SheetNames[0]];
+  const raw = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+  if(raw.length < 2) throw new Error('Файл пустой или не содержит данных на первом листе');
+
+  // Build column index — skip blank headers
+  const headerRow = raw[0];
+  const colIdx = {};
+  headerRow.forEach((h,i) => { if(h && String(h).trim()) colIdx[String(h).trim()] = i; });
+
+  const required = ['id','review_author','answer_group','answer_name','answer_value','reviewer_type'];
+  const missing  = required.filter(k => !(k in colIdx));
+  if(missing.length) throw new Error(`Не найдены колонки: ${missing.join(', ')}`);
+
+  function get(row, key)    { return colIdx[key] !== undefined ? String(row[colIdx[key]]||'').trim() : ''; }
+  function getNum(row, key) { return parseFloat(row[colIdx[key]]) || 0; }
+
+  const rows    = raw.slice(1).filter(r => r.some(c => c !== '' && c != null));
+  const teamKey = ['team','Team','Команда','команда'].find(k => k in colIdx);
+
+  // ── Pass 1: discover schema from file ──────────────────────────────────
+  // group full→short, skill full→short, platform per template, skill order per platform
+  const groupShortMap  = new Map(); // full group name → short name (ordered by first seen)
+  const skillShortMap  = new Map(); // full skill name → short name
+  const templateRole   = new Map(); // template_name → platform string
+  // skill order per platform: platform → Map(skillShort → groupShort) in appearance order
+  const roleSkillOrder = new Map(); // platform → array of {s, g} in order
+  const roleSkillSeen  = new Map(); // platform → Set of skill shorts
+  const resultsSeen    = new Map(); // normalized result → order index (for color assignment)
+
+  rows.forEach(row => {
+    const tmpl   = get(row, 'template_name');
+    const grpFull= get(row, 'answer_group');
+    const sklFull= get(row, 'answer_name');
+    const rtp    = get(row, 'reviewer_type');
+    if(!grpFull || !sklFull) return;
+
+    // Platform from template
+    if(tmpl && !templateRole.has(tmpl)) {
+      templateRole.set(tmpl, extractRole(tmpl));
+    }
+    const role = tmpl ? (templateRole.get(tmpl) || 'Unknown') : 'Unknown';
+
+    // Collect result values
+    const res0 = get(row, 'result');
+    if(res0 && !resultsSeen.has(normResult(res0))) resultsSeen.set(normResult(res0), resultsSeen.size);
+
+    // Group short
+    if(!groupShortMap.has(grpFull)) groupShortMap.set(grpFull, groupShort(grpFull));
+
+    // Skill short
+    if(!skillShortMap.has(sklFull)) skillShortMap.set(sklFull, skillShort(sklFull));
+
+    // Track skill order per platform (only from reviewer or author rows)
+    if(!roleSkillOrder.has(role)) { roleSkillOrder.set(role, []); roleSkillSeen.set(role, new Set()); }
+    const sks = skillShortMap.get(sklFull);
+    const grpS = groupShortMap.get(grpFull);
+    if(!roleSkillSeen.get(role).has(sks)) {
+      roleSkillSeen.get(role).add(sks);
+      roleSkillOrder.get(role).push({s:sks, g:grpS});
+    }
+  });
+
+  // ── Build META ──────────────────────────────────────────────────────────
+  // Areas: ordered list of group short names by first appearance
+  const areas      = [...groupShortMap.values()].filter((v,i,a)=>a.indexOf(v)===i);
+  const groupColors= {};
+  areas.forEach((g,i) => groupColors[g] = GROUP_PALETTE[i % GROUP_PALETTE.length]);
+
+  // Platforms: ordered by first appearance
+  const roles    = [...roleSkillOrder.keys()];
+  const roleColors   = {};
+  roles.forEach((pl,i) => {
+    roleColors[pl] = COLOR_Q[i % COLOR_Q.length];
+  });
+
+  // ── Pass 2: build people ────────────────────────────────────────────────
+  // Priority: review_leader > review_required. review_additional is ignored.
+  const REVIEWER_TYPES = ['review_leader','review_required'];
+  const byId = {};
+
+  rows.forEach(row => {
+    const id = get(row, 'id');
+    if(!id) return;
+
+    const tmpl   = get(row, 'template_name');
+    const grpFull= get(row, 'answer_group');
+    const sklFull= get(row, 'answer_name');
+    if(!grpFull || !sklFull) return;
+
+    const grpS = groupShortMap.get(grpFull) || groupShort(grpFull);
+    const sklS = skillShortMap.get(sklFull)  || skillShort(sklFull);
+    const role = templateRole.get(tmpl) || 'Unknown';
+
+    if(!byId[id]) byId[id] = {
+      id, n: get(row,'review_author'), tmpl,
+      team: teamKey ? get(row, teamKey) : '—',
+      res:'', rev:'', rt:0, st:0, role_type: role,
+      self:{}, rv:{}, rvPriority:99,
+    };
+
+    const p   = byId[id];
+    const val = getNum(row, 'answer_value');
+    const rtp = get(row, 'reviewer_type');
+    const tot = getNum(row, 'total_score');
+    const res = get(row, 'result');
+    const rev = get(row, 'reviewer');
+
+    if(res) p.res = normResult(res);
+
+    if(rtp === 'review_author') {
+      if(tot) p.st = tot;
+      p.self[sklS] = {value:val, group:grpS};
+    } else {
+      const priority = REVIEWER_TYPES.indexOf(rtp);
+      if(priority === -1) return;
+
+      if(priority < p.rvPriority) {
+        p.rvPriority = priority;
+        p.rv = {};
+        if(tot) p.rt = tot;
+        if(rev) p.rev = rev;
+      }
+      if(priority === p.rvPriority) {
+        p.rv[sklS] = {value:val, group:grpS};
+        if(tot && !p.rt) p.rt = tot;
+        if(rev && !p.rev) p.rev = rev;
+      }
+    }
+  });
+
+  // ── Build final people array ─────────────────────────────────────────────
+  const people = Object.values(byId).filter(p=>p.n).map(p => {
+    const order = roleSkillOrder.get(p.role_type) || roleSkillOrder.values().next().value || [];
+    const allSk = new Set([...Object.keys(p.self), ...Object.keys(p.rv)]);
+    const orderedSk = [
+      ...order.filter(o => allSk.has(o.s)),
+      ...[...allSk].filter(s => !order.find(o=>o.s===s)).map(s => ({
+        s, g: (p.rv[s]||p.self[s])?.group || '?'
+      }))
+    ];
+
+    const sk = [], gSum = {}, gCount = {};
+    orderedSk.forEach(({s,g}) => {
+      const sd = p.self[s]||{value:0, group:g};
+      const rd = p.rv[s]  ||{value:0, group:g};
+      sk.push({g, s, self:sd.value, rv:rd.value});
+      gSum[g]   = (gSum[g]  ||0) + rd.value;
+      gCount[g] = (gCount[g]||0) + 1;
+    });
+
+    const groups = {};
+    areas.forEach(a => {
+      if(gSum[a] !== undefined) groups[a] = Math.round(gSum[a] / gCount[a]);
+    });
+
+    return { n:p.n, p:p.role_type, t:p.team||'—', res:p.res||'?',
+             rev:p.rev, rt:p.rt, st:p.st, groups, sk };
+  });
+
+  // ── Teams ────────────────────────────────────────────────────────────────
+  const teams = [...new Set(people.map(p=>p.t).filter(t=>t&&t!=='—'))];
+  const teamColors = {};
+  teams.forEach((t,i) => teamColors[t] = TEAM_PALETTE[i % TEAM_PALETTE.length]);
+
+  // Result colors — assign from palette ordered by appearance
+  // Heuristic: sort results so higher grades get green tones
+  const RESULT_COLOR_PALETTE = ['#34d399','#6ee7b7','#fbbf24','#fb923c','#f87171','#a78bfa','#60a5fa'];
+  const resultOrder = [...resultsSeen.keys()].sort((a,b) => {
+    // Try to sort by grade level: longer/higher-number strings = lower grade
+    const score = s => {
+      const l = s.toLowerCase();
+      if(l.includes('principal') || l.includes('staff')) return 0;
+      if(l.includes('senior')) return 1;
+      if(l.includes('m+') || l.includes('plus')) return 2;
+      if(l.includes('middle')) return 3;
+      if(l.includes('junior')) return 4;
+      return 5 + resultsSeen.get(s);
+    };
+    return score(a) - score(b);
+  });
+  const resultColors = {};
+  resultOrder.forEach((r,i) => resultColors[r] = RESULT_COLOR_PALETTE[i % RESULT_COLOR_PALETTE.length]);
+
+  const meta = { areas, groupColors, roles, roleColors, teams, teamColors,
+                 resultColors, roleSkillOrder, skillsByPlatform: roleSkillOrder };
+
+  return {people, meta};
+}
+
+// ── Global state ──────────────────────────────────────────────────────────
+let PEOPLE = [];
+let META   = { areas:[], groupColors:{}, roles:[], roleColors:{}, teams:[], teamColors:{}, roleSkillOrder:new Map() };
+const RC = {}, IC = {};
+
+Chart.defaults.color = C.muted;
+Chart.defaults.font.family = "'JetBrains Mono',monospace";
+Chart.defaults.font.size = 9;
+
+function makeRadar(id, datasets, labels) {
+  if(RC[id]) RC[id].destroy();
+  const el = document.getElementById(id);
+  if(!el) return;
+  RC[id] = new Chart(el, {
+    type:'radar', data:{labels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      scales:{r:{min:0,max:70,grid:{color:C.border},angleLines:{color:C.border},
+        pointLabels:{color:C.muted,font:{size:9}},ticks:{display:false}}},
+      plugins:{
+        legend:{labels:{color:C.text,font:{size:9},boxWidth:10,padding:8},position:'bottom'},
+        tooltip:{backgroundColor:C.card,borderColor:C.border,borderWidth:1,titleColor:C.text,bodyColor:C.muted,padding:8}
+      }
+    }
+  });
+}
+
+function ds(label, color, data) {
+  return {label, data, borderColor:color, backgroundColor:color+'18',
+          pointBackgroundColor:color, borderWidth:1.8, pointRadius:2.5};
+}
+
+function tAvg(fn) {
+  const pp = PEOPLE.filter(fn);
+  if(!pp.length) return null;
+  const o = {};
+  META.areas.forEach(a => o[a] = Math.round(pp.reduce((s,p)=>s+(p.groups[a]||0),0)/pp.length));
+  return o;
+}
+function avgVec(fn) { const a = tAvg(fn); return META.areas.map(x=>a?.[x]||0); }
+
+function pColor(role) { return META.roleColors[role] || C.muted; }
+function tColor(team) { return META.teamColors[team] || C.muted; }
+function badgeHtml(res) {
+  const col = resultColor(res);
+  return `<span class="badge" style="background:${col}20;color:${col}">${res}</span>`;
+}
+function gColor(g) { return META.groupColors[g] || C.muted; }
+
+// ── Legend & subtitle ─────────────────────────────────────────────────────
+function buildLegend() {
+  let h='';
+  META.areas.forEach(a=>h+=`<span><span class="legend-dot" style="background:${gColor(a)}"></span>${a}</span>`);
+  h+=`<span style="width:1px;height:12px;background:var(--dim);margin:0 4px"></span>`;
+  [8,16,32,64,128].forEach(v=>h+=`<span class="scale-chip" style="background:${sColor(v)};color:${sText(v)}">${v}</span>`);
+  document.getElementById('legend').innerHTML=h;
+}
+function buildSubtitle() {
+  const revs = [...new Set(PEOPLE.map(p=>p.rev).filter(Boolean))];
+  // Derive a short title from template names (strip date/season suffixes like ". Зима 25-26")
+  const templates = [...new Set(PEOPLE.map(p=>p.tmpl).filter(Boolean))];
+  const titleParts = [...new Set(templates.map(t => t.replace(/\..*$/, '').replace(/\s+(Developer|Designer|Analyst|Engineer|Review|Зима|Лето|Осень|Весна|\d{2}[-–]\d{2}).*$/i,'').trim()))];
+  const derivedTitle = titleParts.length <= 3 ? titleParts.join(' · ') : `${titleParts.length} шаблонов`;
+  if(derivedTitle) {
+    document.title = derivedTitle + ' · Радары оценок';
+    const h = document.getElementById('dash-title');
+    if(h) h.textContent = 'Радары оценок · ' + derivedTitle;
+  }
+  document.getElementById('subtitle').textContent =
+    `${PEOPLE.length} чел. · ${META.roles.join(', ')}` +
+    (META.teams.length ? ` · команды: ${META.teams.join(', ')}` : '') +
+    (revs.length ? ` · ревьюеры: ${revs.join(', ')}` : '');
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// VIEW 1 — RADAR
+// ════════════════════════════════════════════════════════════════════════
+function buildRadarView() {
+  const {roles, roleColors, teams, teamColors} = META;
+  const AREAS = META.areas;
+
+  const allSets = [];
+  const colorQ  = [...Object.values(roleColors), ...Object.values(teamColors), ...COLOR_Q];
+  let ci=0;
+
+  if(teams.length) {
+    teams.forEach(t => roles.forEach(pl => {
+      if(PEOPLE.some(p=>p.t===t&&p.p===pl))
+        allSets.push(ds(`${t} ${pl}`, colorQ[ci++%colorQ.length], avgVec(p=>p.t===t&&p.p===pl)));
+    }));
+  } else {
+    roles.forEach(pl => allSets.push(ds(pl, roleColors[pl]||C.muted, avgVec(p=>p.p===pl))));
+  }
+
+  let pairHtml='', pairIdx=0;
+
+  // Same team, different platform
+  teams.forEach(t => {
+    const tPlats = roles.filter(pl=>PEOPLE.some(p=>p.t===t&&p.p===pl));
+    if(tPlats.length<2) return;
+    const sets = tPlats.map(pl=>ds(`${t} ${pl}`, roleColors[pl]||C.muted, avgVec(p=>p.t===t&&p.p===pl)));
+    const cid = `rc-p${pairIdx++}`;
+    pairHtml += `<div class="card"><div class="card-title">${t}: ${tPlats.join(' vs ')}</div>
+      <div class="card-sub">Одна команда, разные типы</div>
+      <canvas id="${cid}" height="240"></canvas></div>`;
+    setTimeout(()=>makeRadar(cid,sets,AREAS),0);
+  });
+
+  // Same platform, different teams
+  roles.forEach(pl => {
+    const tms = teams.filter(t=>PEOPLE.some(p=>p.t===t&&p.p===pl));
+    if(tms.length<2) return;
+    const sets = tms.map(t=>ds(`${t} ${pl}`, teamColors[t]||C.muted, avgVec(p=>p.t===t&&p.p===pl)));
+    const cid = `rc-p${pairIdx++}`;
+    pairHtml += `<div class="card"><div class="card-title">${pl}: ${tms.join(' vs ')}</div>
+      <div class="card-sub">Один тип, разные команды</div>
+      <canvas id="${cid}" height="240"></canvas></div>`;
+    setTimeout(()=>makeRadar(cid,sets,AREAS),0);
+  });
+
+  document.getElementById('view-radar').innerHTML = `
+    <div class="radar-grid">
+      <div class="card full">
+        <div class="card-title">Обзор: все группы</div>
+        <div class="card-sub">Средний балл ревьюера по группам</div>
+        <canvas id="rc-all" height="260"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-title">По типам ревью</div>
+        <div class="card-sub">${roles.join(' vs ')}</div>
+        <canvas id="rc-role" height="240"></canvas>
+      </div>
+      ${pairHtml || `<div class="card"><div class="card-title" style="color:var(--muted);font-size:11px">Попарные сравнения</div>
+        <div class="card-sub">Добавьте колонку <code style="background:var(--raised);padding:1px 4px;border-radius:3px">team</code> для разбивки по командам</div></div>`}
+    </div>`;
+
+  setTimeout(()=>{
+    makeRadar('rc-all',  allSets, AREAS);
+    makeRadar('rc-role', roles.map(pl=>ds(pl, roleColors[pl]||C.muted, avgVec(p=>p.p===pl))), AREAS);
+  }, 0);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// VIEW 2 — HEATMAP
+// ════════════════════════════════════════════════════════════════════════
+function buildHeatmap() {
+  const {roles, roleColors, teams, teamColors} = META;
+  const AREAS = META.areas;
+
+  let segments = [];
+  if(teams.length) {
+    teams.forEach(t=>roles.forEach(pl=>{
+      if(PEOPLE.some(p=>p.t===t&&p.p===pl))
+        segments.push({label:`${t} · ${pl}`, fn:p=>p.t===t&&p.p===pl, color:tColor(t)});
+    }));
+  } else {
+    roles.forEach(pl=>segments.push({label:pl, fn:p=>p.p===pl, color:pColor(pl)}));
+  }
+
+  let h='<div class="heatmap-section">';
+  segments.forEach(({label,fn,color})=>{
+    const pp=[...PEOPLE].filter(fn).sort((a,b)=>b.rt-a.rt);
+    if(!pp.length) return;
+    const avgT = Math.round(pp.reduce((s,p)=>s+p.rt,0)/pp.length);
+    h+=`<div class="card"><div class="card-title">${label}</div>
+      <div class="card-sub">${pp.length} чел. · средний балл: ${avgT}</div>
+      <div style="font-size:9px;color:var(--muted);margin-bottom:4px">Средние по блокам</div>
+      <div class="group-avg-row">`;
+    AREAS.forEach(a=>{
+      const avg=Math.round(pp.reduce((s,p)=>s+(p.groups[a]||0),0)/pp.length);
+      h+=`<div class="avg-cell" style="background:${sColor(avg)};border-color:${sColor(avg)||'var(--border)'}">
+        <div class="avg-val" style="color:${sText(avg)}">${avg||0}</div>
+        <div class="avg-lbl">${a}</div></div>`;
+    });
+    h+=`</div><div style="display:flex;padding-left:148px;margin-bottom:4px">`;
+    AREAS.forEach(a=>h+=`<div style="flex:1;text-align:center;font-size:9px;font-weight:600;color:${gColor(a)}">${a}</div>`);
+    h+='</div>';
+    pp.forEach(p=>{
+      h+=`<div class="person-row"><div class="person-name">
+          <div class="pname"><span class="pname-dot" style="background:${pColor(p.p)}"></span>${p.n}</div>
+          <div class="pmeta">${badgeHtml(p.res)}<span style="font-size:9px;color:var(--accent);font-weight:600">${p.rt}</span></div>
+        </div><div class="group-cells">`;
+      AREAS.forEach(a=>{
+        const v=p.groups[a]||0;
+        h+=`<div class="gcell" style="background:${sColor(v)};color:${sText(v)};border-color:${sColor(v)||'var(--border)'}">${v}</div>`;
+      });
+      h+='</div></div>';
+    });
+    h+='</div>';
+  });
+  h+='</div>';
+  document.getElementById('view-heatmap').innerHTML=h;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// VIEW 3 — INDIVIDUAL
+// ════════════════════════════════════════════════════════════════════════
+function buildIndividual() {
+  const AREAS = META.areas;
+  const el = document.getElementById('view-individual');
+  const sorted = [...PEOPLE].sort((a,b)=>b.rt-a.rt);
+  let active = null;
+
+  function render() {
+    const list = active ? sorted.filter(p=>p.n===active) : sorted;
+    let h='<div class="person-selector">';
+    sorted.forEach(p=>{
+      const on=active===p.n;
+      h+=`<button class="person-btn" data-n="${p.n}"
+        style="background:${on?pColor(p.p)+'30':'var(--raised)'};color:${on?pColor(p.p):'var(--muted)'};border-color:${on?pColor(p.p):'var(--border)'}">
+        ${p.n.split(' ')[0]} <span style="opacity:.6">${p.rt}</span></button>`;
+    });
+    h+='</div><div class="individual-grid">';
+    list.forEach((p,i)=>{
+      h+=`<div class="ind-card" style="border-left:3px solid ${pColor(p.p)}">
+        <div class="ind-header">
+          <div><div class="ind-name">${p.n}</div><div class="ind-sub">${p.t!=='—'?p.t+' · ':''}${p.p}</div></div>
+          <div style="text-align:right">${badgeHtml(p.res)}<div class="ind-score">${p.rt}</div></div>
+        </div>
+        <canvas id="ic-${i}" style="max-height:180px"></canvas>
+        <div class="skill-heat">`;
+      p.sk.forEach(({s,rv})=>{
+        const l=s.length>6?s.slice(0,6):s;
+        h+=`<div class="sheat-cell" style="background:${sColor(rv)};border-color:${sColor(rv)||'var(--border)'}">
+          <span class="sheat-v" style="color:${sText(rv)}">${rv}</span>
+          <span class="sheat-l">${l}</span></div>`;
+      });
+      h+='</div></div>';
+    });
+    h+='</div>';
+    el.innerHTML=h;
+
+    list.forEach((p,i)=>{
+      const id=`ic-${i}`;
+      if(IC[id]) IC[id].destroy();
+      const ctx=document.getElementById(id); if(!ctx) return;
+      IC[id]=new Chart(ctx,{
+        type:'radar',
+        data:{labels:AREAS, datasets:[{data:AREAS.map(a=>p.groups[a]||0),
+          borderColor:pColor(p.p), backgroundColor:pColor(p.p)+'20',
+          pointBackgroundColor:pColor(p.p), borderWidth:2, pointRadius:2}]},
+        options:{responsive:true,maintainAspectRatio:true,
+          scales:{r:{min:0,max:80,grid:{color:C.border},angleLines:{color:C.border},
+            pointLabels:{color:C.muted,font:{size:8}},ticks:{display:false}}},
+          plugins:{legend:{display:false},tooltip:{backgroundColor:C.card,borderColor:C.border,
+            borderWidth:1,titleColor:C.text,bodyColor:C.muted}}}
+      });
+    });
+
+    el.querySelectorAll('.person-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{ active=active===btn.dataset.n?null:btn.dataset.n; render(); });
+    });
+  }
+  render();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// VIEW 4 — SCORE MAP
+// ════════════════════════════════════════════════════════════════════════
+function buildScoremap() {
+  const el = document.getElementById('view-scoremap');
+  const {roles, roleColors, teams, teamColors, roleSkillOrder} = META;
+  const hasT = teams.length > 0;
+
+  let showGap=true, showSelf=true;
+  let filterPlat='all', filterTeam='all';
+
+  function getSegments() {
+    let segs = [];
+    if(hasT) {
+      teams.forEach(t=>roles.forEach(pl=>{
+        if(PEOPLE.some(p=>p.t===t&&p.p===pl))
+          segs.push({label:`${t} · ${pl}`, color:tColor(t), pl, team:t, fn:p=>p.t===t&&p.p===pl});
+      }));
+    } else {
+      roles.forEach(pl=>{
+        if(PEOPLE.some(p=>p.p===pl))
+          segs.push({label:pl, color:pColor(pl), pl, team:null, fn:p=>p.p===pl});
+      });
+    }
+    return segs.filter(g=>{
+      if(filterPlat!=='all' && g.pl!==filterPlat) return false;
+      if(filterTeam!=='all' && g.team!==filterTeam) return false;
+      return true;
+    });
+  }
+
+  function render() {
+    const segs = getSegments();
+
+    // Dynamic filter buttons — roles from META
+    const tb=(active, val, label, isActive)=>
+      `<button class="tab${isActive?' active':''}" data-fp="${val}" data-ft="__">${label}</button>`;
+
+    let platBtns = `<button class="tab${filterPlat==='all'?' active':''}" data-fp="all" data-ft="__">Все</button>`;
+    roles.forEach(pl=>{
+      platBtns+=`<button class="tab${filterPlat===pl?' active':''}" data-fp="${pl}" data-ft="__">${pl}</button>`;
+    });
+
+    let teamBtns = '';
+    if(hasT) {
+      teamBtns += `<div class="sep"></div>`;
+      teamBtns += `<button class="tab${filterTeam==='all'?' active':''}" data-fp="__" data-ft="all">Все команды</button>`;
+      teams.forEach(t=>{
+        teamBtns+=`<button class="tab${filterTeam===t?' active':''}" data-fp="__" data-ft="${t}">${t}</button>`;
+      });
+    }
+
+    const tg=(k,l,s)=>`<button class="toggle-btn${s?' active':''}" data-t="${k}">${l}</button>`;
+
+    let h=`<div class="scoremap-controls">
+      ${platBtns}${teamBtns}
+      <div class="sep"></div>
+      ${tg('gap','Gap self−rev',showGap)} ${tg('self','Σ gap',showSelf)}
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;align-items:center;font-size:9px;color:var(--muted);flex-wrap:wrap">
+      <span>Шкала:</span>`;
+    [8,16,32,64,128].forEach(v=>h+=`<span class="scale-chip" style="background:${sColor(v)};color:${sText(v)}">${v}</span>`);
+    h+=`<span style="margin-left:8px">Gap:</span><span style="color:#f87171">+16 переоценка</span><span style="color:#34d399">−16 недооценка</span></div>`;
+
+    segs.forEach(g=>{
+      const pp=[...PEOPLE].filter(g.fn).sort((a,b)=>b.rt-a.rt);
+      if(!pp.length) return;
+
+      // Build skill list from platform's known order, then add any extras
+      const order = roleSkillOrder.get(g.pl) || [];
+      const seen  = new Set();
+      const skillList = [];
+      order.forEach(o=>{ if(!seen.has(o.s)&&pp.some(p=>p.sk.find(sk=>sk.s===o.s))){ seen.add(o.s); skillList.push(o); }});
+      pp.forEach(p=>p.sk.forEach(sk=>{ if(!seen.has(sk.s)){ seen.add(sk.s); skillList.push({s:sk.s,g:sk.g}); }}));
+
+      h+=`<div class="scoremap-group">
+        <div class="sg-header"><div class="sg-dot" style="background:${g.color}"></div>
+          <span class="sg-title">${g.label}</span><span class="sg-count">(${pp.length})</span></div>
+        <div style="display:flex;align-items:flex-end;margin-bottom:3px">
+          <div style="width:155px;flex-shrink:0"></div>
+          <div style="width:44px;flex-shrink:0;text-align:center;font-size:8px;color:var(--muted)">Σ rev</div>
+          <div style="display:flex;gap:1px">`;
+      skillList.forEach(o=>h+=`<div style="width:32px;text-align:center;font-size:7px;color:${gColor(o.g)};height:22px;display:flex;align-items:flex-end;justify-content:center">${o.s}</div>`);
+      h+=`</div></div><div style="display:flex;margin-bottom:4px"><div style="width:199px;flex-shrink:0"></div><div style="display:flex;gap:1px">`;
+      skillList.forEach(o=>h+=`<div style="width:32px;height:2px;border-radius:1px;background:${gColor(o.g)};opacity:.5"></div>`);
+      h+='</div></div>';
+
+      pp.forEach(p=>{
+        const gapTotal=(p.st||0)-p.rt;
+        h+=`<div class="sm-row">
+          <div class="sm-name">
+            <div class="pname"><span class="pname-dot" style="background:${pColor(p.p)}"></span>
+              <span style="font-size:10px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.n}</span></div>
+            <div class="pmeta">${badgeHtml(p.res)}<span style="font-size:8px;color:var(--muted)">${p.rev||''}</span></div>
+          </div>
+          <div class="sm-total">
+            <div class="sm-total-v">${p.rt}</div>
+            ${showSelf&&p.st?`<div class="sm-total-g" style="color:${gapCol(-gapTotal)}">${gapTotal>0?'+':''}${gapTotal}</div>`:''}
+          </div>
+          <div class="sm-cells">`;
+        skillList.forEach(o=>{
+          const m=p.sk.find(sk=>sk.s===o.s);
+          if(!m){ h+=`<div class="sm-cell" style="background:var(--surf)"></div>`; return; }
+          const diff=m.self-m.rv;
+          h+=`<div class="sm-cell" style="background:${sColor(m.rv)};border-color:${sColor(m.rv)||'var(--border)'}">
+            <span class="sm-v" style="color:${sText(m.rv)}">${m.rv}</span>
+            ${showGap&&diff!==0?`<span class="sm-g" style="color:${gapCol(diff)}">${diff>0?'+':''}${diff}</span>`:''}
+          </div>`;
+        });
+        h+='</div></div>';
+      });
+      h+='</div>';
+    });
+
+    el.innerHTML=h;
+    el.querySelectorAll('[data-fp],[data-ft]').forEach(b=>{
+      b.addEventListener('click',()=>{
+        const fp=b.dataset.fp, ft=b.dataset.ft;
+        if(fp!=='__') filterPlat=fp;
+        if(ft!=='__') filterTeam=ft;
+        render();
+      });
+    });
+    el.querySelectorAll('[data-t]').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.t==='gap') showGap=!showGap; else showSelf=!showSelf; render();
+    }));
+  }
+  render();
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════════════════
+function initDashboard({people, meta}) {
+  PEOPLE = people;
+  META   = meta;
+
+  ['view-radar','view-heatmap','view-individual','view-scoremap'].forEach(id=>{
+    document.getElementById(id).innerHTML='';
+    document.getElementById(id).className='view';
+  });
+  document.getElementById('view-radar').classList.add('active');
+  document.querySelectorAll('.tab[data-view]').forEach(t=>t.classList.remove('active'));
+  document.querySelector('[data-view="radar"]').classList.add('active');
+
+  buildSubtitle(); buildLegend(); buildRadarView(); buildHeatmap();
+  document.getElementById('upload-screen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+}
+
+// Tab switching
+document.querySelectorAll('.tab[data-view]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const v=btn.dataset.view;
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.remove('active'));
+    document.getElementById(`view-${v}`).classList.add('active');
+    btn.classList.add('active');
+    if(v==='individual') buildIndividual();
+    if(v==='scoremap')   buildScoremap();
+  });
+});
+
+document.getElementById('reload-btn').addEventListener('click',()=>{
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('upload-screen').style.display='flex';
+});
+
+// File handling
+function handleFile(file) {
+  if(!file) return;
+  const errEl=document.getElementById('upload-error');
+  errEl.style.display='none';
+  const r=new FileReader();
+  r.onload=e=>{
+    try {
+      const result=parseXlsx(e.target.result);
+      if(!result.people.length) throw new Error('Ни одной записи не найдено. Проверьте структуру колонок.');
+      initDashboard(result);
+    } catch(err) {
+      console.error(err);
+      errEl.textContent='⚠️ '+err.message;
+      errEl.style.display='block';
+    }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+const dz=document.getElementById('drop-zone');
+const fi=document.getElementById('file-input');
+fi.addEventListener('change', e=>handleFile(e.target.files[0]));
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));
+dz.addEventListener('drop', e=>{ e.preventDefault(); dz.classList.remove('drag'); handleFile(e.dataTransfer.files[0]); });
+
+</script>
+</body>
+</html>
