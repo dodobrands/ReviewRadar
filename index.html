@@ -695,7 +695,7 @@ function buildIndividual() {
     el.querySelectorAll('.person-btn').forEach(btn=>{
       btn.addEventListener('click',()=>{
         const n=btn.dataset.n;
-        if(n==='__all__') { active = (active.size===sorted.length) ? new Set() : new Set(sorted.map(p=>p.n)); }
+        if(n==='__all__') { active = new Set(); }
         else { if(active.has(n)) active.delete(n); else active.add(n); }
         render();
       });
