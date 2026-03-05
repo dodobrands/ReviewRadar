@@ -110,6 +110,10 @@ body{background:var(--bg);color:var(--text);font-family:'JetBrains Mono','IBM Pl
 .sm-cell{width:32px;height:32px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:3px;border:1px solid transparent;flex-shrink:0}
 .sm-v{font-size:9px;font-weight:700;line-height:1}
 .sm-g{font-size:7px;line-height:1;margin-top:1px}
+.sm-col-lbl{width:32px;height:22px;display:flex;align-items:flex-end;justify-content:center;position:relative;cursor:default;flex-shrink:0}
+.sm-col-lbl span{font-size:7px;overflow:hidden;white-space:nowrap;max-width:30px;text-overflow:ellipsis;display:block;text-align:center}
+.sm-col-lbl::after{content:attr(data-full);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--borderL);border-radius:5px;padding:3px 7px;font-size:9px;white-space:nowrap;z-index:100;color:var(--text);pointer-events:none;opacity:0;transition:opacity .1s}
+.sm-col-lbl:hover::after{opacity:1}
 
 .view{display:none}
 .view.active{display:block}
@@ -766,7 +770,7 @@ function buildScoremap() {
           <div style="width:155px;flex-shrink:0"></div>
           <div style="width:44px;flex-shrink:0;text-align:center;font-size:8px;color:var(--muted)">Σ rev</div>
           <div style="display:flex;gap:1px">`;
-      skillList.forEach(o=>h+=`<div style="width:32px;text-align:center;font-size:7px;color:${gColor(o.g)};height:22px;display:flex;align-items:flex-end;justify-content:center">${o.s}</div>`);
+      skillList.forEach(o=>h+=`<div class="sm-col-lbl" style="color:${gColor(o.g)}" data-full="${o.s}"><span>${o.s.slice(0,4)}</span></div>`);
       h+=`</div></div><div style="display:flex;margin-bottom:4px"><div style="width:199px;flex-shrink:0"></div><div style="display:flex;gap:1px">`;
       skillList.forEach(o=>h+=`<div style="width:32px;height:2px;border-radius:1px;background:${gColor(o.g)};opacity:.5"></div>`);
       h+='</div></div>';
