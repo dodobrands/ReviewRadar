@@ -24,8 +24,8 @@ ReviewRadar превращает выгрузку из системы ревью
 
 <table>
   <tr>
-    <td><img src="1.png" alt="Heatmap по группам"></td>
-    <td><img src="2.png" alt="Радары команд"></td>
+    <td><img src="1.png" alt="Радары команд"></td>
+    <td><img src="2.png" alt="Heatmap по группам"></td>
   </tr>
   <tr>
     <td><img src="3.png" alt="Индивидуальный радар"></td>
