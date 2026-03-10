@@ -99,8 +99,8 @@ ReviewRadar превращает выгрузку из системы ревью
 ## Технологии
 
 - Vanilla JS — без фреймворков, без сборки
-- [SheetJS](https://shejs.io) — парсинг `.xlsx` прямо в браузере
-- [Chart.js](https://chartjs.org) — радарные диаграммы
+- [SheetJS](https://sheetjs.com) — парсинг `.xlsx` прямо в браузере
+- [Chart.js](https://www.chartjs.org) — радарные диаграммы
 - Один файл `index.html` — можно просто переслать коллеге
 
 ---
