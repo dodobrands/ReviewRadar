@@ -22,16 +22,16 @@ ReviewRadar превращает выгрузку из системы ревью
 
 ## Скриншоты
 
-![Загрузка файла](0.png)
+![Загрузка файла](images/0.png)
 
 <table>
   <tr>
-    <td><img src="1.png" alt="Радары команд"></td>
-    <td><img src="2.png" alt="Heatmap по группам"></td>
+    <td><img src="images/1.png" alt="Радары команд"></td>
+    <td><img src="images/2.png" alt="Heatmap по группам"></td>
   </tr>
   <tr>
-    <td><img src="3.png" alt="Индивидуальные радары"></td>
-    <td><img src="4.png" alt="Карта оценок"></td>
+    <td><img src="images/3.png" alt="Индивидуальные радары"></td>
+    <td><img src="images/4.png" alt="Карта оценок"></td>
   </tr>
 </table>
 
